@@ -1,0 +1,44 @@
+#!/bin/sh
+
+yay -S libpng15 ncurses5-compat-libs
+
+read -p "Please enter the absolute path to which you want me to save the build files: " buildpath
+
+cd $buildpath
+
+git clone https://aur.archlinux.org/adlmapps.git
+git clone https://aur.archlinux.org/adsklicensing.git
+git clone https://aur.archlinux.org/maya.git
+
+cd $buildpath/adlmapps
+adlmappspkgname=$(grep "source=" PKGBUILD | sed "s%source=('manual://%%;s%'%%")
+cd $buildpath/adsklicensing
+adsklicensingpkgname=$(grep "source=" PKGBUILD | sed "s%source=('manual://%%;s%'%%")
+adsklicensingversion=$(grep "pkgver" PKGBUILD | sed "s/pkgver=//")
+cd $buildpath/maya
+mayapkgname=$(grep "source=" PKGBUILD | sed "s%source=('manual://%%;s%'%%")
+mayamajorversion=$(grep "pkgver" PKGBUILD | sed "s/pkgver=//;s/\..*//")
+
+read -p "Please go to manage.autodesk.com, download the Maya tgz file (version $mayaversion), extract it, and enter the absolute path of the folder you extracted it to (i.e. the folder that contains 'MayaConfig.pit'): " extractedpath
+
+cp $extractedpath/Packages/$adlmappspkgname $buildpath/adlmapps
+cp $extractedpath/Packages/$adsklicensingpkgname $buildpath/adsklicensing
+cp $extractedpath/Packages/$mayapkgname $buildpath/maya
+
+cd $buildpath/adlmapps
+makepkg -sirc
+cd $buildpath/adsklicensing
+makepkg -sirc
+cd $buildpath/maya
+makepkg -sirc
+
+sudo systemctl enable --now adsklicensing
+
+sudo /opt/Autodesk/AdskLicensing/$adsklicensingversion/helper/AdskLicensingInstHelper register -pk 657L1 -pv $mayamajorversion.0.0.F -el EN_US -cf $extractedpath/MayaConfig.pit
+sudo ln -sf /usr/lib/libssl.so.1.0.0 /usr/autodesk/maya$mayamajorversion/lib/libssl.so.10
+
+sudo pacman -D --asdeps libpng15 ncurses5-compat-libs adlmapps adsklicensing
+
+echo "Please reboot, start Maya and enter your Autodesk account information."
+
+exit 0
